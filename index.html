@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zembaba - Football & FIFA Predictions</title>
+    <title>Betcore - Football & FIFA Predictions</title>
     <!-- Telegram Web App Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Supabase JS Client Library -->
@@ -360,7 +360,7 @@
     <div class="container">
         <!-- Top Header: App Name & Balance with Deposit Trigger -->
         <div class="app-header">
-            <div class="app-title">⚽ ዘምባባ (Zembaba)</div>
+            <div class="app-title">⚽ Betcore</div>
             <div class="balance-badge">
                 <span>Bal: <b style="color: var(--accent-color);">0$</b></span>
                 <button class="deposit-trigger-btn" onclick="openDepositModal()" title="Deposit">+</button>
@@ -539,7 +539,6 @@
                 return;
             }
 
-            // Data packaging to send back to Telegram Bot or handling flow
             const depositData = {
                 country: country,
                 payment_method: country === 'Ethiopia' ? 'Telebirr' : 'USD (BEP20)',
@@ -549,11 +548,9 @@
             };
 
             if (tg.sendData) {
-                // Sends data back to the Telegram Bot chat interface
                 tg.sendData(JSON.stringify(depositData));
                 tg.close();
             } else {
-                // Fallback for browser testing
                 alert(`የዲፖዚት ጥያቄዎ በትክክል ተልኳል። አድሚኑ መረጃውን (ID: ${txnId}) አረጋግጦ ወደ ፕራይቬት ቻናል ይጨምርዎታል።`);
                 closeDepositModal();
             }
