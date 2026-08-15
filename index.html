@@ -493,9 +493,24 @@
         let currentUserTelegramId = null;
 
         window.addEventListener('DOMContentLoaded', async () => {
-            const tgUser = tg.initDataUnsafe?.user;
-            currentUserTelegramId = tgUser ? tgUser.id : Math.floor(Math.random() * 1000000); // Test ID if opened in browser
-            const username = tgUser ? (tgUser.username || tgUser.first_name) : 'BrowserUser';
+            let telegramId = null;
+            let username = 'BrowserUser';
+
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                telegramId = tg.initDataUnsafe.user.id;
+                username = tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'TelegramUser';
+            }
+
+            if (!telegramId) {
+                telegramId = localStorage.getItem('betcore_guest_id');
+                if (!telegramId) {
+                    telegramId = 'guest_' + Math.floor(Math.random() * 1000000);
+                    localStorage.setItem('betcore_guest_id', telegramId);
+                }
+                username = 'BrowserUser';
+            }
+
+            currentUserTelegramId = telegramId;
 
             await syncUserWithDatabase(currentUserTelegramId, username);
             await fetchPredictions();
