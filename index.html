@@ -493,24 +493,9 @@
         let currentUserTelegramId = null;
 
         window.addEventListener('DOMContentLoaded', async () => {
-            let telegramId = null;
-            let username = 'BrowserUser';
-
-            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                telegramId = tg.initDataUnsafe.user.id;
-                username = tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name || 'TelegramUser';
-            }
-
-            if (!telegramId) {
-                telegramId = localStorage.getItem('betcore_guest_id');
-                if (!telegramId) {
-                    telegramId = 'guest_' + Math.floor(Math.random() * 1000000);
-                    localStorage.setItem('betcore_guest_id', telegramId);
-                }
-                username = 'BrowserUser';
-            }
-
-            currentUserTelegramId = telegramId;
+            const tgUser = tg.initDataUnsafe?.user;
+            currentUserTelegramId = tgUser ? tgUser.id : Math.floor(Math.random() * 1000000); 
+            const username = tgUser ? (tgUser.username || tgUser.first_name) : 'BrowserUser';
 
             await syncUserWithDatabase(currentUserTelegramId, username);
             await fetchPredictions();
@@ -719,6 +704,9 @@
                 const isUnlocked = unlockedAllVip || unlockedPicks.includes(originalIndex);
                 const statusVal = (match.status || 'PENDING').toUpperCase();
 
+                // ከဒታቤዝ የዋጋ አምድ (price) ማምጣት፣ ከሌለ በነባሪ 5$ መጠቀም
+                const matchPrice = match.price !== undefined && match.price !== null ? match.price : 5;
+
                 if (isVipTab && !isUnlocked) {
                     card.classList.add('locked');
                     card.innerHTML = `
@@ -729,8 +717,8 @@
                         <div class="lock-overlay">
                             <span style="font-size: 1.5rem;">🔒</span>
                             <div class="lock-title">${match.match_title || 'VIP Locked Fixture'}</div>
-                            <p style="color: var(--text-muted); font-size: 0.75rem;">Unlock this pick for $5</p>
-                            <button class="unlock-btn" onclick="unlockPick(${originalIndex}, 5)">Unlock Pick ($5)</button>
+                            <p style="color: var(--text-muted); font-size: 0.75rem;">Unlock this pick for $${matchPrice}</p>
+                            <button class="unlock-btn" onclick="unlockPick(${originalIndex}, ${matchPrice})">Unlock Pick ($${matchPrice})</button>
                         </div>
                     `;
                 } else {
