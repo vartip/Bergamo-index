@@ -94,6 +94,31 @@
             transform: scale(0.9);
         }
 
+        .lang-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .lang-btn {
+            background-color: var(--tab-bg);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .lang-btn.active {
+            background-color: var(--accent-color);
+            color: #000;
+            border-color: var(--accent-color);
+        }
+
         .top-tabs {
             display: flex;
             justify-content: center;
@@ -402,35 +427,43 @@
 <body>
 
     <div class="container">
+        <!-- Language Switcher Bar -->
+        <div class="lang-bar">
+            <span style="font-size: 0.75rem; color: var(--text-muted);" id="lang-label">Lang:</span>
+            <button class="lang-btn active" onclick="setLanguage('en')">🇬🇧 EN</button>
+            <button class="lang-btn" onclick="setLanguage('fr')">🇫🇷 FR</button>
+            <button class="lang-btn" onclick="setLanguage('uz')">🇺🇿 UZ</button>
+        </div>
+
         <!-- Top Header -->
         <div class="app-header">
             <div class="app-title">⚽ Betcore</div>
             <div class="balance-badge">
-                <span>Bal: <b id="user-balance-display" style="color: var(--accent-color);">0$</b></span>
+                <span id="bal-text">Bal: <b id="user-balance-display" style="color: var(--accent-color);">0$</b></span>
                 <button class="deposit-trigger-btn" onclick="openDepositModal()" title="Deposit">+</button>
             </div>
         </div>
 
         <!-- Top Navigation Tabs -->
         <div class="top-tabs">
-            <button class="tab-btn active" onclick="switchTab('free', this)">🎁 Free Tips</button>
-            <button class="tab-btn" onclick="switchTab('vip', this)">👑 VIP Tips</button>
-            <button class="tab-btn" onclick="switchTab('history', this)">🕒 History</button>
+            <button class="tab-btn active" id="tab-free" onclick="switchTab('free', this)">🎁 Free Tips</button>
+            <button class="tab-btn" id="tab-vip" onclick="switchTab('vip', this)">👑 VIP Tips</button>
+            <button class="tab-btn" id="tab-history" onclick="switchTab('history', this)">🕒 History</button>
         </div>
 
         <!-- Filter Game Type Section -->
         <div class="filter-section" id="filter-box">
-            <span class="filter-label">Filter Game Type:</span>
+            <span class="filter-label" id="filter-label-text">Filter Game Type:</span>
             <div class="filter-options">
-                <button class="filter-btn active" onclick="filterGame('all', this)">All</button>
-                <button class="filter-btn" onclick="filterGame('Football', this)">⚽ Football</button>
-                <button class="filter-btn" onclick="filterGame('FIFA', this)">🎮 FIFA</button>
+                <button class="filter-btn active" id="filter-all" onclick="filterGame('all', this)">All</button>
+                <button class="filter-btn" id="filter-football" onclick="filterGame('Football', this)">⚽ Football</button>
+                <button class="filter-btn" id="filter-fifa" onclick="filterGame('FIFA', this)">🎮 FIFA</button>
             </div>
         </div>
 
         <!-- Main Dynamic Content Container -->
         <div id="predictions-container">
-            <div class="loading">Loading...</div>
+            <div class="loading" id="loading-text">Loading...</div>
         </div>
     </div>
 
@@ -439,15 +472,15 @@
         <div class="modal-content">
             <button class="close-modal" onclick="closeDepositModal()">&times;</button>
             <div class="vip-banner">
-                <h3>👑 Deposit & Unlock VIP</h3>
-                <p>If your balance is insufficient, please deposit via USDT to top up your account.</p>
+                <h3 id="modal-title">👑 Deposit & Unlock VIP</h3>
+                <p id="modal-desc">If your balance is insufficient, please deposit via USDT to top up your account.</p>
             </div>
             
             <form id="deposit-form" onsubmit="submitDepositToBot(event)">
                 <div class="form-group">
-                    <label>Select Country / Region</label>
+                    <label id="country-label">Select Country / Region</label>
                     <select id="country-select" class="form-control" onchange="onCountryChange()" required>
-                        <option value="" disabled selected>-- Choose Country --</option>
+                        <option value="" disabled selected id="country-default">-- Choose Country --</option>
                         <option value="USA">United States</option>
                         <option value="UK">United Kingdom</option>
                         <option value="Canada">Canada</option>
@@ -458,12 +491,12 @@
                 <div id="payment-info-box" style="display: none; background: #0b0f19; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; border: 1px solid var(--border-color);"></div>
 
                 <div class="form-group" id="txn-group" style="display: none;">
-                    <label>Enter Transaction ID / Hash</label>
+                    <label id="txn-label">Enter Transaction ID / Hash</label>
                     <input type="text" id="txn_id" class="form-control" placeholder="e.g. 0x1234...abcd">
                 </div>
 
                 <div class="form-group" id="screenshot-group" style="display: none;">
-                    <label>Upload Payment Screenshot (Receipt)</label>
+                    <label id="screenshot-label">Upload Payment Screenshot (Receipt)</label>
                     <input type="file" id="screenshot_file" class="form-control" accept="image/*">
                 </div>
 
@@ -483,12 +516,130 @@
 
         let currentTab = 'free';
         let currentGameType = 'all';
+        let currentLang = 'en';
         let allPredictions = [];
         
         let userBalance = 0; 
         let unlockedPicks = []; 
         let unlockedAllVip = false;
         let currentUserTelegramId = null;
+
+        // Translations Dictionary
+        const translations = {
+            en: {
+                tabFree: "🎁 Free Tips",
+                tabVip: "👑 VIP Tips",
+                tabHistory: "🕒 History",
+                filterLabel: "Filter Game Type:",
+                filterAll: "All",
+                filterFootball: "⚽ Football",
+                filterFifa: "🎮 FIFA",
+                loading: "Loading...",
+                bal: "Bal:",
+                modalTitle: "👑 Deposit & Unlock VIP",
+                modalDesc: "If your balance is insufficient, please deposit via USDT to top up your account.",
+                countryLabel: "Select Country / Region",
+                countryDefault: "-- Choose Country --",
+                txnLabel: "Enter Transaction ID / Hash",
+                screenshotLabel: "Upload Payment Screenshot (Receipt)",
+                depositBtn: "Deposit via Telegram Bot",
+                unlockAllTitle: "👑 Unlock All VIP Picks",
+                unlockAllDesc: "Unlock all VIP picks for today for $20!",
+                unlockAllBtn: "Unlock All ($20)",
+                vipLockedMatch: "🔒 VIP Locked Match",
+                vipLockedFixture: "VIP Locked Fixture",
+                unlockPickBtn: (price) => `Unlock Pick ($${price})`,
+                predictionTip: "Prediction Tip",
+                odds: "Odds",
+                noPredictions: "No predictions found for this section.",
+                failedLoad: "Failed to load data."
+            },
+            fr: {
+                tabFree: "🎁 Conseils Gratuits",
+                tabVip: "👑 Conseils VIP",
+                tabHistory: "🕒 Historique",
+                filterLabel: "Filtrer le type de jeu:",
+                filterAll: "Tous",
+                filterFootball: "⚽ Football",
+                filterFifa: "🎮 FIFA",
+                loading: "Chargement...",
+                bal: "Solde:",
+                modalTitle: "👑 Déposer et débloquer VIP",
+                modalDesc: "Si votre solde est insuffisant, veuillez déposer via USDT pour recharger votre compte.",
+                countryLabel: "Sélectionnez le pays / la région",
+                countryDefault: "-- Choisir le pays --",
+                txnLabel: "Entrez l'ID de transaction / Hash",
+                screenshotLabel: "Télécharger la capture d'écran du paiement",
+                depositBtn: "Déposer via le bot Telegram",
+                unlockAllTitle: "👑 Débloquer tous les pronostics VIP",
+                unlockAllDesc: "Débloquez tous les pronostics VIP pour aujourd'hui à 20$ !",
+                unlockAllBtn: "Tout débloquer (20$)",
+                vipLockedMatch: "🔒 Match VIP Verrouillé",
+                vipLockedFixture: "Rencontre VIP Verrouillée",
+                unlockPickBtn: (price) => `Débloquer (${price}$)`,
+                predictionTip: "Pronostic",
+                odds: "Cotes",
+                noPredictions: "Aucun pronostic trouvé pour cette section.",
+                failedLoad: "Échec du chargement des données."
+            },
+            uz: {
+                tabFree: "🎁 Bepul Maslahatlar",
+                tabVip: "👑 VIP Maslahatlar",
+                tabHistory: "🕒 Tarix",
+                filterLabel: "O'yin turini filtrlash:",
+                filterAll: "Barchasi",
+                filterFootball: "⚽ Futbol",
+                filterFifa: "🎮 FIFA",
+                loading: "Yuklanmoqda...",
+                bal: "Balans:",
+                modalTitle: "👑 Depozit va VIP ochish",
+                modalDesc: "Balansingiz yetarli bo'lmasa, hisobingizni to'ldirish uchun USDT orqali depozit qiling.",
+                countryLabel: "Mamlakat / Hududni tanlang",
+                countryDefault: "-- Mamlakatni tanlang --",
+                txnLabel: "Tranzaksiya ID / Hash kiriting",
+                screenshotLabel: "To'lov skrinshotini yuklang",
+                depositBtn: "Telegram Bot orqali depozit",
+                unlockAllTitle: "👑 Barcha VIP prognozlarni ochish",
+                unlockAllDesc: "Bugungi barcha VIP prognozlarni 20$ evaziga oching!",
+                unlockAllBtn: "Barchasini ochish (20$)",
+                vipLockedMatch: "🔒 VIP Qulflangan O'yin",
+                vipLockedFixture: "VIP Qulflangan O'yin",
+                unlockPickBtn: (price) => `O'yinni ochish ($${price})`,
+                predictionTip: "Bashorat",
+                odds: "Koef",
+                noPredictions: "Bu bo'lim uchun bashoratlar topilmadi.",
+                failedLoad: "Ma'lumotlarni yuklab bo'lmadi."
+            }
+        };
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const t = translations[currentLang];
+            document.getElementById('tab-free').innerText = t.tabFree;
+            document.getElementById('tab-vip').innerText = t.tabVip;
+            document.getElementById('tab-history').innerText = t.tabHistory;
+            document.getElementById('filter-label-text').innerText = t.filterLabel;
+            document.getElementById('filter-all').innerText = t.filterAll;
+            document.getElementById('filter-football').innerText = t.filterFootball;
+            document.getElementById('filter-fifa').innerText = t.filterFifa;
+            document.getElementById('modal-title').innerText = t.modalTitle;
+            document.getElementById('modal-desc').innerText = t.modalDesc;
+            document.getElementById('country-label').innerText = t.countryLabel;
+            document.getElementById('country-default').innerText = t.countryDefault;
+            document.getElementById('txn-label').innerText = t.txnLabel;
+            document.getElementById('screenshot-label').innerText = t.screenshotLabel;
+            document.getElementById('deposit-action-btn').innerText = t.depositBtn;
+
+            if (document.querySelector('.loading')) {
+                document.getElementById('loading-text').innerText = t.loading;
+            }
+
+            renderPredictions();
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
 
         window.addEventListener('DOMContentLoaded', async () => {
             const tgUser = tg.initDataUnsafe?.user;
@@ -538,7 +689,8 @@
 
             } catch (err) {
                 console.error("Error fetching data:", err);
-                document.getElementById('predictions-container').innerHTML = `<div class="empty-state">Failed to load data.</div>`;
+                const t = translations[currentLang];
+                document.getElementById('predictions-container').innerHTML = `<div class="empty-state">${t.failedLoad}</div>`;
             }
         }
 
@@ -665,6 +817,7 @@
 
         function renderPredictions() {
             const container = document.getElementById('predictions-container');
+            const t = translations[currentLang];
 
             let filtered = allPredictions.filter((item, index) => {
                 let matchesTab = true;
@@ -691,7 +844,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="empty-state">No predictions found for this section.</div>`;
+                container.innerHTML = `<div class="empty-state">${t.noPredictions}</div>`;
                 return;
             }
 
@@ -701,9 +854,9 @@
                 const allVipBanner = document.createElement('div');
                 allVipBanner.style.cssText = "background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--vip-gold); border-radius: 14px; padding: 14px; text-align: center; margin-bottom: 16px;";
                 allVipBanner.innerHTML = `
-                    <h3 style="color: var(--vip-gold); font-size: 1rem; margin-bottom: 6px;">👑 Unlock All VIP Picks</h3>
-                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px;">Unlock all VIP picks for today for $20!</p>
-                    <button onclick="unlockAllVip()" style="background-color: var(--vip-gold); color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;">Unlock All ($20)</button>
+                    <h3 style="color: var(--vip-gold); font-size: 1rem; margin-bottom: 6px;">${t.unlockAllTitle}</h3>
+                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px;">${t.unlockAllDesc}</p>
+                    <button onclick="unlockAllVip()" style="background-color: var(--vip-gold); color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;">${t.unlockAllBtn}</button>
                 `;
                 container.appendChild(allVipBanner);
             }
@@ -722,14 +875,14 @@
                     card.classList.add('locked');
                     card.innerHTML = `
                         <div class="card-top-row">
-                            <span class="badge-category">🔒 VIP Locked Match</span>
+                            <span class="badge-category">${t.vipLockedMatch}</span>
                             <span class="match-time">${match.match_time || 'N/A'}</span>
                         </div>
                         <div class="lock-overlay">
                             <span style="font-size: 1.5rem;">🔒</span>
-                            <div class="lock-title">${match.match_title || 'VIP Locked Fixture'}</div>
+                            <div class="lock-title">${match.match_title || t.vipLockedFixture}</div>
                             <p style="color: var(--text-muted); font-size: 0.75rem;">Unlock this pick for $${matchPrice}</p>
-                            <button class="unlock-btn" onclick="unlockPick(${originalIndex}, ${matchPrice})">Unlock Pick ($${matchPrice})</button>
+                            <button class="unlock-btn" onclick="unlockPick(${originalIndex}, ${matchPrice})">${t.unlockPickBtn(matchPrice)}</button>
                         </div>
                     `;
                 } else {
@@ -750,11 +903,11 @@
                         </div>
                         <div class="tip-odds-box">
                             <div>
-                                <div class="tip-title-label">Prediction Tip</div>
+                                <div class="tip-title-label">${t.predictionTip}</div>
                                 <div class="tip-value">${match.prediction || 'N/A'}</div>
                             </div>
                             <div>
-                                <div class="tip-title-label" style="text-align: right;">Odds</div>
+                                <div class="tip-title-label" style="text-align: right;">${t.odds}</div>
                                 <div class="odds-value">@${match.odds || '1.85'}</div>
                             </div>
                         </div>
