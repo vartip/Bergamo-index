@@ -19,6 +19,7 @@
             --text-muted: #94a3b8;
             --border-color: #1e293b;
             --vip-gold: #f59e0b;
+            --danger-color: #ef4444;
         }
 
         * {
@@ -94,7 +95,7 @@
             transform: scale(0.9);
         }
 
-        /* Top Navigation Tabs (Centered) */
+        /* Top Navigation Tabs */
         .top-tabs {
             display: flex;
             justify-content: center;
@@ -168,6 +169,11 @@
             padding: 16px;
             margin-bottom: 16px;
             border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .prediction-card.locked {
+            border-color: var(--vip-gold);
         }
 
         .card-top-row {
@@ -194,13 +200,26 @@
         }
 
         .status-badge {
-            background-color: #b45309;
-            color: #fef3c7;
             padding: 4px 10px;
             border-radius: 6px;
             font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
+        }
+
+        .status-badge.pending {
+            background-color: #b45309;
+            color: #fef3c7;
+        }
+
+        .status-badge.won {
+            background-color: #059669;
+            color: #ffffff;
+        }
+
+        .status-badge.lost {
+            background-color: #dc2626;
+            color: #ffffff;
         }
 
         .team-section {
@@ -255,7 +274,38 @@
             color: var(--accent-color);
         }
 
-        /* Modal Popup for Deposit */
+        /* Lock Overlay for VIP items */
+        .lock-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(11, 15, 25, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px dashed var(--vip-gold);
+            gap: 10px;
+        }
+
+        .lock-title {
+            color: var(--vip-gold);
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .unlock-btn {
+            background-color: var(--vip-gold);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* Modal Popup for Deposit & VIP Unlock */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -358,16 +408,16 @@
 <body>
 
     <div class="container">
-        <!-- Top Header: App Name & Balance with Deposit Trigger -->
+        <!-- Top Header: App Name & Balance -->
         <div class="app-header">
             <div class="app-title">⚽ Betcore</div>
             <div class="balance-badge">
-                <span>Bal: <b style="color: var(--accent-color);">0$</b></span>
+                <span>Bal: <b id="user-balance-display" style="color: var(--accent-color);">20$</b></span>
                 <button class="deposit-trigger-btn" onclick="openDepositModal()" title="Deposit">+</button>
             </div>
         </div>
 
-        <!-- Top Navigation Tabs (Centered) -->
+        <!-- Top Navigation Tabs -->
         <div class="top-tabs">
             <button class="tab-btn active" onclick="switchTab('free', this)">🎁 Free Tips</button>
             <button class="tab-btn" onclick="switchTab('vip', this)">👑 VIP Tips</button>
@@ -396,7 +446,7 @@
             <button class="close-modal" onclick="closeDepositModal()">&times;</button>
             <div class="vip-banner">
                 <h3>👑 Deposit & Unlock VIP</h3>
-                <p>Select your country and follow instructions to deposit funds.</p>
+                <p>If your balance is insufficient, please deposit to top up your account.</p>
             </div>
             
             <form id="deposit-form" onsubmit="submitDepositToBot(event)">
@@ -415,9 +465,7 @@
                 </div>
 
                 <!-- Dynamic Account / Payment Info Box -->
-                <div id="payment-info-box" style="display: none; background: #0b0f19; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; border: 1px solid var(--border-color);">
-                    <!-- Will be populated dynamically based on country -->
-                </div>
+                <div id="payment-info-box" style="display: none; background: #0b0f19; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; border: 1px solid var(--border-color);"></div>
 
                 <!-- Transaction ID / Receipt Number -->
                 <div class="form-group" id="txn-group" style="display: none;">
@@ -449,8 +497,13 @@
         let currentTab = 'free';
         let currentGameType = 'all';
         let allPredictions = [];
+        
+        let userBalance = 20; 
+        let unlockedPicks = []; 
+        let unlockedAllVip = false;
 
         window.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('user-balance-display').innerText = userBalance + '$';
             await fetchPredictions();
         });
 
@@ -498,7 +551,6 @@
             document.getElementById('depositModal').style.display = 'none';
         }
 
-        // Handle Dynamic Payment Info based on Country selection
         function onCountryChange() {
             const country = document.getElementById('country-select').value;
             const infoBox = document.getElementById('payment-info-box');
@@ -514,28 +566,23 @@
             if (country === 'Ethiopia') {
                 infoBox.innerHTML = `
                     <span style="color: var(--text-muted);">Payment Method:</span> <b style="color: var(--vip-gold);">Telebirr</b><br>
-                    <span style="color: var(--text-muted);">Send payment to:</span> <b style="color: var(--accent-color);">0912345678 (Abebe Kebede)</b>
+                    <span style="color: var(--text-muted);">Send payment to:</span> <b style="color: var(--accent-color);">0951791727 (Mehari)</b>
                 `;
             } else {
                 infoBox.innerHTML = `
                     <span style="color: var(--text-muted);">Payment Currency:</span> <b style="color: var(--vip-gold);">USD (BEP20 Network - USDT)</b><br>
-                    <span style="color: var(--text-muted);">Wallet Address:</span> <b style="color: var(--accent-color);">0x1234...AbCd (Binance Smart Chain)</b>
+                    <span style="color: var(--text-muted);">Wallet Address:</span> <b style="color: var(--accent-color);">0x5C6e8079854d5844434894D37b98A277F33Da5fF</b>
                 `;
             }
         }
 
-        // Send Deposit details & trigger Bot communication
         function submitDepositToBot(event) {
             event.preventDefault();
             const country = document.getElementById('country-select').value;
             const txnId = document.getElementById('txn_id').value;
             
-            if (!country) {
-                alert('እባክዎ ሀገር ይምረጡ');
-                return;
-            }
-            if (!txnId) {
-                alert('እባክዎ የትራንዛክሽን ቁጥር (Transaction ID) ያስገቡ');
+            if (!country || !txnId) {
+                alert('Please fill in all information.');
                 return;
             }
 
@@ -551,24 +598,60 @@
                 tg.sendData(JSON.stringify(depositData));
                 tg.close();
             } else {
-                alert(`የዲፖዚት ጥያቄዎ በትክክል ተልኳል። አድሚኑ መረጃውን (ID: ${txnId}) አረጋግጦ ወደ ፕራይቬት ቻናል ይጨምርዎታል።`);
+                alert(`Deposit request (ID: ${txnId}) sent successfully.`);
                 closeDepositModal();
+            }
+        }
+
+        function unlockPick(index, price) {
+            if (userBalance >= price) {
+                userBalance -= price;
+                unlockedPicks.push(index);
+                document.getElementById('user-balance-display').innerText = userBalance + '$';
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                renderPredictions();
+            } else {
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+                alert('⚠️ Insufficient balance! Please deposit.');
+                openDepositModal();
+            }
+        }
+
+        function unlockAllVip() {
+            if (userBalance >= 20) {
+                userBalance -= 20;
+                unlockedAllVip = true;
+                document.getElementById('user-balance-display').innerText = userBalance + '$';
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                renderPredictions();
+            } else {
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+                alert('⚠️ You need $20 to unlock all VIP picks. Please deposit!');
+                openDepositModal();
             }
         }
 
         function renderPredictions() {
             const container = document.getElementById('predictions-container');
 
-            let filtered = allPredictions.filter(item => {
+            let filtered = allPredictions.filter((item, index) => {
                 let matchesTab = true;
                 const tour = (item.tournament || '').toLowerCase();
+                const status = (item.status || 'PENDING').toUpperCase();
+
+                // ጨዋታው Won ወይም Lost ከሆኑ ከ Free እና Vip ታቦች ውጪ እንዲሆን (ወደ History ብቻ እንዲገባ)
+                if (status === 'WON' || status === 'LOST') {
+                    if (currentTab === 'free' || currentTab === 'vip') {
+                        return false; 
+                    }
+                }
 
                 if (currentTab === 'free') {
-                    matchesTab = tour.includes('free');
+                    matchesTab = tour.includes('free') && status === 'PENDING';
                 } else if (currentTab === 'vip') {
-                    matchesTab = tour.includes('vip');
+                    matchesTab = tour.includes('vip') && status === 'PENDING';
                 } else if (currentTab === 'history') {
-                    matchesTab = item.status && item.status !== 'PENDING';
+                    matchesTab = status === 'WON' || status === 'LOST';
                 }
 
                 let matchesGame = (currentGameType === 'all') || tour.includes(currentGameType.toLowerCase());
@@ -582,31 +665,69 @@
             }
 
             container.innerHTML = '';
-            filtered.forEach(match => {
+            
+            // Show "Unlock All VIP" banner
+            if (currentTab === 'vip' && !unlockedAllVip) {
+                const allVipBanner = document.createElement('div');
+                allVipBanner.style.cssText = "background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--vip-gold); border-radius: 14px; padding: 14px; text-align: center; margin-bottom: 16px;";
+                allVipBanner.innerHTML = `
+                    <h3 style="color: var(--vip-gold); font-size: 1rem; margin-bottom: 6px;">👑 Unlock All VIP Picks</h3>
+                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px;">Unlock all VIP picks for today for $20!</p>
+                    <button onclick="unlockAllVip()" style="background-color: var(--vip-gold); color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;">Unlock All ($20)</button>
+                `;
+                container.appendChild(allVipBanner);
+            }
+
+            filtered.forEach((match, originalIndex) => {
                 const card = document.createElement('div');
                 card.className = 'prediction-card';
-                card.innerHTML = `
-                    <div class="card-top-row">
-                        <span class="badge-category">${match.tournament || 'Football Tip'}</span>
-                        <span class="match-time">${match.match_time || '03:58 AM'}</span>
-                        <span class="status-badge">${match.status || 'PENDING'}</span>
-                    </div>
-                    <div class="team-section">
-                        <span class="team-name">${match.match_title ? match.match_title.split(' vs ')[0] : 'Team A'}</span>
-                        <span class="vs-text">vs</span>
-                        <span class="team-name">${match.match_title ? match.match_title.split(' vs ')[1] : 'Team B'}</span>
-                    </div>
-                    <div class="tip-odds-box">
-                        <div>
-                            <div class="tip-title-label">Prediction Tip</div>
-                            <div class="tip-value">${match.prediction || 'Qq'}</div>
+
+                const isVipTab = (currentTab === 'vip');
+                const isUnlocked = unlockedAllVip || unlockedPicks.includes(originalIndex);
+                const statusVal = (match.status || 'PENDING').toUpperCase();
+
+                if (isVipTab && !isUnlocked) {
+                    card.classList.add('locked');
+                    card.innerHTML = `
+                        <div class="card-top-row">
+                            <span class="badge-category">🔒 VIP Locked Match</span>
+                            <span class="match-time">${match.match_time || '03:58 AM'}</span>
                         </div>
-                        <div>
-                            <div class="tip-title-label" style="text-align: right;">Odds</div>
-                            <div class="odds-value">@${match.odds || '1.85'}</div>
+                        <div class="lock-overlay">
+                            <span style="font-size: 1.5rem;">🔒</span>
+                            <div class="lock-title">${match.match_title || 'VIP Locked Fixture'}</div>
+                            <p style="color: var(--text-muted); font-size: 0.75rem;">Unlock this pick for $5</p>
+                            <button class="unlock-btn" onclick="unlockPick(${originalIndex}, 5)">Unlock Pick ($5)</button>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    let statusClass = 'pending';
+                    if (statusVal === 'WON') statusClass = 'won';
+                    if (statusVal === 'LOST') statusClass = 'lost';
+
+                    card.innerHTML = `
+                        <div class="card-top-row">
+                            <span class="badge-category">${match.tournament || 'Football Tip'}</span>
+                            <span class="match-time">${match.match_time || '03:58 AM'}</span>
+                            <span class="status-badge ${statusClass}">${statusVal}</span>
+                        </div>
+                        <div class="team-section">
+                            <span class="team-name">${match.match_title ? match.match_title.split(' vs ')[0] : 'Team A'}</span>
+                            <span class="vs-text">vs</span>
+                            <span class="team-name">${match.match_title ? match.match_title.split(' vs ')[1] : 'Team B'}</span>
+                        </div>
+                        <div class="tip-odds-box">
+                            <div>
+                                <div class="tip-title-label">Prediction Tip</div>
+                                <div class="tip-value">${match.prediction || 'Qq'}</div>
+                            </div>
+                            <div>
+                                <div class="tip-title-label" style="text-align: right;">Odds</div>
+                                <div class="odds-value">@${match.odds || '1.85'}</div>
+                            </div>
+                        </div>
+                    `;
+                }
                 container.appendChild(card);
             });
         }
