@@ -43,7 +43,6 @@
             max-width: 480px;
         }
 
-        /* Top Header */
         .app-header {
             display: flex;
             justify-content: space-between;
@@ -95,7 +94,6 @@
             transform: scale(0.9);
         }
 
-        /* Top Navigation Tabs */
         .top-tabs {
             display: flex;
             justify-content: center;
@@ -122,7 +120,6 @@
             border-color: var(--accent-color);
         }
 
-        /* Filter Game Type Section */
         .filter-section {
             display: flex;
             align-items: center;
@@ -162,7 +159,6 @@
             color: #000000;
         }
 
-        /* Prediction Card Design */
         .prediction-card {
             background-color: var(--card-bg);
             border-radius: 16px;
@@ -274,7 +270,6 @@
             color: var(--accent-color);
         }
 
-        /* Lock Overlay for VIP items */
         .lock-overlay {
             display: flex;
             flex-direction: column;
@@ -305,7 +300,6 @@
             cursor: pointer;
         }
 
-        /* Modal Popup for Deposit & VIP Unlock */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -408,11 +402,11 @@
 <body>
 
     <div class="container">
-        <!-- Top Header: App Name & Balance -->
+        <!-- Top Header -->
         <div class="app-header">
             <div class="app-title">⚽ Betcore</div>
             <div class="balance-badge">
-                <span>Bal: <b id="user-balance-display" style="color: var(--accent-color);">20$</b></span>
+                <span>Bal: <b id="user-balance-display" style="color: var(--accent-color);">0$</b></span>
                 <button class="deposit-trigger-btn" onclick="openDepositModal()" title="Deposit">+</button>
             </div>
         </div>
@@ -450,7 +444,6 @@
             </div>
             
             <form id="deposit-form" onsubmit="submitDepositToBot(event)">
-                <!-- Country Selection -->
                 <div class="form-group">
                     <label>Select Your Country</label>
                     <select id="country-select" class="form-control" onchange="onCountryChange()" required>
@@ -464,22 +457,18 @@
                     </select>
                 </div>
 
-                <!-- Dynamic Account / Payment Info Box -->
                 <div id="payment-info-box" style="display: none; background: #0b0f19; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; border: 1px solid var(--border-color);"></div>
 
-                <!-- Transaction ID / Receipt Number -->
                 <div class="form-group" id="txn-group" style="display: none;">
                     <label>Enter Transaction ID / Receipt Number</label>
                     <input type="text" id="txn_id" class="form-control" placeholder="e.g. TRX12345678">
                 </div>
 
-                <!-- Screenshot Upload Note -->
                 <div class="form-group" id="screenshot-group" style="display: none;">
                     <label>Upload Payment Screenshot (Receipt)</label>
                     <input type="file" id="screenshot_file" class="form-control" accept="image/*">
                 </div>
 
-                <!-- Deposit Action Button -->
                 <button type="submit" id="deposit-action-btn" class="deposit-btn" style="display: none;">Deposit via Telegram Bot</button>
             </form>
         </div>
@@ -498,14 +487,45 @@
         let currentGameType = 'all';
         let allPredictions = [];
         
-        let userBalance = 20; 
+        let userBalance = 0; 
         let unlockedPicks = []; 
         let unlockedAllVip = false;
+        let currentUserTelegramId = null;
 
         window.addEventListener('DOMContentLoaded', async () => {
-            document.getElementById('user-balance-display').innerText = userBalance + '$';
+            const tgUser = tg.initDataUnsafe?.user;
+            currentUserTelegramId = tgUser ? tgUser.id : Math.floor(Math.random() * 1000000); // Test ID if opened in browser
+            const username = tgUser ? (tgUser.username || tgUser.first_name) : 'BrowserUser';
+
+            await syncUserWithDatabase(currentUserTelegramId, username);
             await fetchPredictions();
         });
+
+        async function syncUserWithDatabase(telegramId, username) {
+            try {
+                let { data, error } = await supabaseClient
+                    .from('users')
+                    .select('*')
+                    .eq('telegram_id', telegramId)
+                    .maybeSingle();
+
+                if (data) {
+                    userBalance = data.balance !== undefined ? data.balance : 0;
+                } else {
+                    const { error: insertError } = await supabaseClient
+                        .from('users')
+                        .insert([{ telegram_id: telegramId, username: username, balance: 0 }]);
+                    
+                    if (insertError) console.error('Error inserting user:', insertError);
+                    userBalance = 0;
+                }
+
+                document.getElementById('user-balance-display').innerText = userBalance + '$';
+            } catch (err) {
+                console.error('Error syncing user:', err);
+                document.getElementById('user-balance-display').innerText = '0$';
+            }
+        }
 
         async function fetchPredictions() {
             try {
@@ -590,7 +610,7 @@
                 country: country,
                 payment_method: country === 'Ethiopia' ? 'Telebirr' : 'USD (BEP20)',
                 txn_id: txnId,
-                user_id: tg.initDataUnsafe?.user?.id || 'unknown_user',
+                user_id: currentUserTelegramId,
                 username: tg.initDataUnsafe?.user?.username || 'unknown'
             };
 
@@ -639,7 +659,6 @@
                 const tour = (item.tournament || '').toLowerCase();
                 const status = (item.status || 'PENDING').toUpperCase();
 
-                // ጨዋታው Won ወይም Lost ከሆኑ ከ Free እና Vip ታቦች ውጪ እንዲሆን (ወደ History ብቻ እንዲገባ)
                 if (status === 'WON' || status === 'LOST') {
                     if (currentTab === 'free' || currentTab === 'vip') {
                         return false; 
@@ -666,7 +685,6 @@
 
             container.innerHTML = '';
             
-            // Show "Unlock All VIP" banner
             if (currentTab === 'vip' && !unlockedAllVip) {
                 const allVipBanner = document.createElement('div');
                 allVipBanner.style.cssText = "background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--vip-gold); border-radius: 14px; padding: 14px; text-align: center; margin-bottom: 16px;";
@@ -691,7 +709,7 @@
                     card.innerHTML = `
                         <div class="card-top-row">
                             <span class="badge-category">🔒 VIP Locked Match</span>
-                            <span class="match-time">${match.match_time || '03:58 AM'}</span>
+                            <span class="match-time">${match.match_time || 'N/A'}</span>
                         </div>
                         <div class="lock-overlay">
                             <span style="font-size: 1.5rem;">🔒</span>
@@ -708,7 +726,7 @@
                     card.innerHTML = `
                         <div class="card-top-row">
                             <span class="badge-category">${match.tournament || 'Football Tip'}</span>
-                            <span class="match-time">${match.match_time || '03:58 AM'}</span>
+                            <span class="match-time">${match.match_time || 'N/A'}</span>
                             <span class="status-badge ${statusClass}">${statusVal}</span>
                         </div>
                         <div class="team-section">
@@ -719,7 +737,7 @@
                         <div class="tip-odds-box">
                             <div>
                                 <div class="tip-title-label">Prediction Tip</div>
-                                <div class="tip-value">${match.prediction || 'Qq'}</div>
+                                <div class="tip-value">${match.prediction || 'N/A'}</div>
                             </div>
                             <div>
                                 <div class="tip-title-label" style="text-align: right;">Odds</div>
