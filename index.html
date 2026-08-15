@@ -440,19 +440,17 @@
             <button class="close-modal" onclick="closeDepositModal()">&times;</button>
             <div class="vip-banner">
                 <h3>👑 Deposit & Unlock VIP</h3>
-                <p>If your balance is insufficient, please deposit to top up your account.</p>
+                <p>If your balance is insufficient, please deposit via USDT to top up your account.</p>
             </div>
             
             <form id="deposit-form" onsubmit="submitDepositToBot(event)">
                 <div class="form-group">
-                    <label>Select Your Country</label>
+                    <label>Select Country / Region</label>
                     <select id="country-select" class="form-control" onchange="onCountryChange()" required>
                         <option value="" disabled selected>-- Choose Country --</option>
-                        <option value="Ethiopia">Ethiopia</option>
                         <option value="USA">United States</option>
                         <option value="UK">United Kingdom</option>
                         <option value="Canada">Canada</option>
-                        <option value="Kenya">Kenya</option>
                         <option value="Other">Other International</option>
                     </select>
                 </div>
@@ -460,8 +458,8 @@
                 <div id="payment-info-box" style="display: none; background: #0b0f19; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; border: 1px solid var(--border-color);"></div>
 
                 <div class="form-group" id="txn-group" style="display: none;">
-                    <label>Enter Transaction ID / Receipt Number</label>
-                    <input type="text" id="txn_id" class="form-control" placeholder="e.g. TRX12345678">
+                    <label>Enter Transaction ID / Hash</label>
+                    <input type="text" id="txn_id" class="form-control" placeholder="e.g. 0x1234...abcd">
                 </div>
 
                 <div class="form-group" id="screenshot-group" style="display: none;">
@@ -583,17 +581,10 @@
             screenshotGroup.style.display = 'block';
             actionBtn.style.display = 'block';
 
-            if (country === 'Ethiopia') {
-                infoBox.innerHTML = `
-                    <span style="color: var(--text-muted);">Payment Method:</span> <b style="color: var(--vip-gold);">Telebirr</b><br>
-                    <span style="color: var(--text-muted);">Send payment to:</span> <b style="color: var(--accent-color);">0951791727 (Mehari)</b>
-                `;
-            } else {
-                infoBox.innerHTML = `
-                    <span style="color: var(--text-muted);">Payment Currency:</span> <b style="color: var(--vip-gold);">USD (BEP20 Network - USDT)</b><br>
-                    <span style="color: var(--text-muted);">Wallet Address:</span> <b style="color: var(--accent-color);">0x5C6e8079854d5844434894D37b98A277F33Da5fF</b>
-                `;
-            }
+            infoBox.innerHTML = `
+                <span style="color: var(--text-muted);">Payment Currency:</span> <b style="color: var(--vip-gold);">USD (BEP20 Network - USDT)</b><br>
+                <span style="color: var(--text-muted);">Wallet Address:</span> <b style="color: var(--accent-color);">0x5C6e8079854d5844434894D37b98A277F33Da5fF</b>
+            `;
         }
 
         function submitDepositToBot(event) {
@@ -608,7 +599,7 @@
 
             const depositData = {
                 country: country,
-                payment_method: country === 'Ethiopia' ? 'Telebirr' : 'USD (BEP20)',
+                payment_method: 'USD (BEP20)',
                 txn_id: txnId,
                 user_id: currentUserTelegramId,
                 username: tg.initDataUnsafe?.user?.username || 'unknown'
