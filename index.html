@@ -623,11 +623,14 @@
             }
         }
 
-        function unlockPick(index, price) {
+        async function unlockPick(index, price) {
             if (userBalance >= price) {
                 userBalance -= price;
                 unlockedPicks.push(index);
+                
                 document.getElementById('user-balance-display').innerText = userBalance + '$';
+                await updateUserBalanceInDB(userBalance);
+
                 if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
                 renderPredictions();
             } else {
@@ -637,17 +640,35 @@
             }
         }
 
-        function unlockAllVip() {
+        async function unlockAllVip() {
             if (userBalance >= 20) {
                 userBalance -= 20;
                 unlockedAllVip = true;
+                
                 document.getElementById('user-balance-display').innerText = userBalance + '$';
+                await updateUserBalanceInDB(userBalance);
+
                 if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
                 renderPredictions();
             } else {
                 if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
                 alert('⚠️ You need $20 to unlock all VIP picks. Please deposit!');
                 openDepositModal();
+            }
+        }
+
+        async function updateUserBalanceInDB(newBalance) {
+            try {
+                const { error } = await supabaseClient
+                    .from('users')
+                    .update({ balance: newBalance })
+                    .eq('telegram_id', currentUserTelegramId);
+
+                if (error) {
+                    console.error('Error updating balance in DB:', error);
+                }
+            } catch (err) {
+                console.error('Exception updating balance:', err);
             }
         }
 
@@ -704,7 +725,6 @@
                 const isUnlocked = unlockedAllVip || unlockedPicks.includes(originalIndex);
                 const statusVal = (match.status || 'PENDING').toUpperCase();
 
-                // ከဒታቤዝ የዋጋ አምድ (price) ማምጣት፣ ከሌለ በነባሪ 5$ መጠቀም
                 const matchPrice = match.price !== undefined && match.price !== null ? match.price : 5;
 
                 if (isVipTab && !isUnlocked) {
